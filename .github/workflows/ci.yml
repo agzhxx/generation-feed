@@ -52,8 +52,10 @@ jobs:
       url: ${{ github.event_name == 'push' && 'https://generation-feed.vercel.app' || steps.deploy.outputs.url }}
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_SCOPE: agjanbatyrbek855-9731s-projects
-      VERCEL_PROJECT: generation-feed
+      # The personal account's team and the generation-feed project, by id (ids, not secrets): the
+      # CLI reads them directly instead of looking up the token's user and teams.
+      VERCEL_ORG_ID: team_lq3gUvlSi2tEgK5WkV3YK6Y2
+      VERCEL_PROJECT_ID: prj_Jd0gUxapWr57xVMn1LMQAAbiUBx2
       VERCEL_ENV: ${{ github.event_name == 'push' && 'production' || 'preview' }}
       PROD_FLAG: ${{ github.event_name == 'push' && '--prod' || '' }}
     steps:
@@ -81,17 +83,17 @@ jobs:
       - run: npm install --global vercel@63.1.2
 
       - name: Pull Vercel project settings
-        run: vercel pull --yes --environment="$VERCEL_ENV" --project="$VERCEL_PROJECT" --scope="$VERCEL_SCOPE" --token="$VERCEL_TOKEN"
+        run: vercel pull --yes --environment="$VERCEL_ENV" --token="$VERCEL_TOKEN"
 
       - name: Build
-        run: vercel build $PROD_FLAG --project="$VERCEL_PROJECT" --scope="$VERCEL_SCOPE" --token="$VERCEL_TOKEN"
+        run: vercel build $PROD_FLAG --token="$VERCEL_TOKEN"
 
       - name: Deploy
         id: deploy
         run: |
           # One archive instead of one upload per file: Vercel takes at most 15,000 files per
           # deploy, and the 1,100 static detail pages and their prefetch files pass that.
-          url=$(vercel deploy --prebuilt --archive=tgz $PROD_FLAG --project="$VERCEL_PROJECT" --scope="$VERCEL_SCOPE" --token="$VERCEL_TOKEN")
+          url=$(vercel deploy --prebuilt --archive=tgz $PROD_FLAG --token="$VERCEL_TOKEN")
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed to $VERCEL_ENV: $url" >> "$GITHUB_STEP_SUMMARY"
 
