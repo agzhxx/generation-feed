@@ -1,6 +1,56 @@
 @import "tailwindcss";
 @import "./tokens.css";
+@import "../components/feed/header.css";
+
+/* The Genframe Kit's components (components/ui, installed with `shadcn add`) are styled with
+   shadcn's color names. Here those names are the feed's tokens, so the Kit's cards look like the
+   feed's: the same map as the Kit's docs site. One name stays the feed's own: shadcn's `accent`
+   is a hover fill, the feed's is Ember, and no Kit component here uses it. */
+@theme inline {
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-fg);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-fg);
+  --color-popover: var(--color-surface-raised);
+  --color-popover-foreground: var(--color-fg);
+  --color-primary: var(--color-accent);
+  --color-primary-foreground: var(--color-on-accent);
+  --color-secondary: var(--color-surface-raised);
+  --color-secondary-foreground: var(--color-fg);
+  /* Muted: what a card shows before its media arrives, as the feed's loading cards. */
+  --color-muted: var(--color-skeleton);
+  --color-muted-foreground: var(--color-fg-muted);
+  --color-destructive: var(--color-danger);
+  --color-border: var(--color-line);
+  --color-input: var(--color-line-strong);
+  --color-ring: var(--color-focus);
+  /* shadcn's radii by role: badge 4, card 6, control 8, panel 12 px. */
+  --radius-sm: var(--radius-badge);
+  --radius-md: var(--radius-card);
+  --radius-lg: var(--radius-control);
+  --radius-xl: var(--radius-panel);
+}
 
 :root {
   color-scheme: dark;
+
+  /* The Kit's motion tokens, as `shadcn add` wrote them. */
+  --genframe-duration-fast: 120ms;
+  --genframe-duration-base: 220ms;
+  --genframe-duration-reveal: 600ms;
+  --genframe-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --genframe-ease-spring: linear(0, 0.007 1.3%, 0.026 2.5%, 0.056 3.8%, 0.101 5.3%, 0.204 8%, 0.458 14%, 0.568 16.8%, 0.668 19.5%, 0.753 22.3%, 0.825 25%, 0.888 28%, 0.937 31%, 0.972 34%, 0.997 37%, 1.013 40%, 1.028 47.3%, 1.003 76.5%, 1);
+}
+
+/* The detail overlay is open: the feed behind it stops scrolling. The gutter keeps the
+   scrollbar's space, so the grid doesn't change width (and reflow) under the overlay. */
+html:has(dialog[open]) {
+  overflow: hidden;
+  scrollbar-gutter: stable;
+}
+
+/* The card's media zooming into the detail overlay and back (spec 3.2). */
+::view-transition-group(*) {
+  animation-duration: var(--dur-base);
+  animation-timing-function: var(--ease-out);
 }

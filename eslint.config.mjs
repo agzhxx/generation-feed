@@ -6,9 +6,9 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
-    // Media is pre-encoded on R2 and served with <picture>/<img> (spec 4.3), and feed
-    // components must not import next/image so they can move to the UI kit (spec 4.12).
-    files: ["components/feed/**"],
+    // Media is pre-encoded on R2 and served with <picture>/<img> (spec 4.3). Feed components
+    // and the Genframe Kit's (components/ui, which also run outside Next.js) don't use next/image.
+    files: ["components/feed/**", "components/detail/**", "components/ui/**"],
     rules: { "@next/next/no-img-element": "off" },
   },
   // Override default ignores of eslint-config-next.
@@ -18,6 +18,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Playwright's reports and traces: generated, and full of minified scripts.
+    "test-results/**",
+    "playwright-report/**",
   ]),
 ]);
 

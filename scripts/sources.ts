@@ -14,6 +14,16 @@ export const sourceItemSchema = z.strictObject({
   model: fields.model,
   modelSlug: fields.modelSlug,
   createdAt: fields.createdAt,
+  // The optional manifest fields (SPEC 4.2).
+  collection: fields.collection,
+  usedBy: fields.usedBy,
+  cameraMove: fields.cameraMove,
+  shot: fields.shot,
+  pairId: fields.pairId,
+  variant: fields.variant,
+  ratioGroup: fields.ratioGroup,
+  /** A video made from an image: that image's file, which ingest turns into `sourceId`. */
+  sourceFile: z.string().min(1).optional(),
 });
 
 export const sourcesSchema = z.array(sourceItemSchema);

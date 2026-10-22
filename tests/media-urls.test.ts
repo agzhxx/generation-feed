@@ -3,6 +3,7 @@ import type { MediaItem } from "@/lib/manifest";
 import {
   mediaUrl,
   ogImageUrl,
+  originalKey,
   posterSrcSet,
   posterUrl,
   posterWidths,
@@ -77,5 +78,10 @@ describe("URLs", () => {
     expect(videoUrl(ORIGIN, video)).toBe(`${ORIGIN}/m/videoid234/v1/full.mp4`);
     expect(previewUrl(ORIGIN, image)).toBeUndefined();
     expect(videoUrl(ORIGIN, image)).toBeUndefined();
+  });
+
+  test("an original is stored by id: an image as WebP, a video as MP4", () => {
+    expect(originalKey(image)).toBe("originals/abcdefgh23.webp");
+    expect(originalKey(video)).toBe("originals/videoid234.mp4");
   });
 });

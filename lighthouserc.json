@@ -1,0 +1,25 @@
+{
+  "ci": {
+    "collect": {
+      "url": ["https://generation-feed.vercel.app/"],
+      "numberOfRuns": 5,
+      "settings": {
+        "onlyCategories": ["performance", "accessibility"],
+        "chromeFlags": "--headless=new"
+      }
+    },
+    "assert": {
+      "assertions": {
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.05, "aggregationMethod": "median-run" }],
+        "total-blocking-time": ["error", { "maxNumericValue": 350, "aggregationMethod": "median-run" }],
+        "resource-summary:script:size": ["error", { "maxNumericValue": 176435, "aggregationMethod": "median-run" }],
+        "categories:accessibility": ["error", { "minScore": 0.95, "aggregationMethod": "median-run" }],
+        "largest-contentful-paint": ["warn", { "maxNumericValue": 2500, "aggregationMethod": "median-run" }]
+      }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": ".lighthouseci/reports"
+    }
+  }
+}

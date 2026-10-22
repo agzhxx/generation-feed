@@ -46,9 +46,32 @@ describe("mediaItemSchema", () => {
   });
 });
 
+describe("the optional M5 fields", () => {
+  test("accept a collection's own fields", () => {
+    expect(mediaItemSchema.safeParse({ ...image, collection: "pairs", usedBy: ["kit", "queue"], pairId: "p07", variant: "final" }).success).toBe(true);
+    expect(mediaItemSchema.safeParse({ ...video, collection: "camera-moves", cameraMove: "crash-zoom", sourceId: image.id }).success).toBe(true);
+    expect(mediaItemSchema.safeParse({ ...video, collection: "story", shot: "03-closeup" }).success).toBe(true);
+  });
+
+  test("reject a field from another collection, an unknown collection, and a source on an image", () => {
+    expect(mediaItemSchema.safeParse({ ...image, collection: "worlds", pairId: "p07" }).success).toBe(false);
+    expect(mediaItemSchema.safeParse({ ...image, ratioGroup: "r03" }).success).toBe(false);
+    expect(mediaItemSchema.safeParse({ ...image, collection: "landscapes" }).success).toBe(false);
+    expect(mediaItemSchema.safeParse({ ...image, sourceId: video.id }).success).toBe(false);
+    expect(mediaItemSchema.safeParse({ ...image, collection: "pairs", variant: "sketch" }).success).toBe(false);
+  });
+});
+
 describe("manifestSchema", () => {
   test("rejects duplicate ids", () => {
     expect(manifestSchema.safeParse([image, image]).success).toBe(false);
+  });
+
+  test("a video's source must be an image in the manifest", () => {
+    const clip = { ...video, sourceId: image.id };
+    expect(manifestSchema.safeParse([image, clip]).success).toBe(true);
+    expect(manifestSchema.safeParse([clip]).success).toBe(false);
+    expect(manifestSchema.safeParse([video, { ...clip, id: "clipid2345", sourceId: video.id }]).success).toBe(false);
   });
 });
 
@@ -65,8 +88,8 @@ describe("compareItems", () => {
   });
 });
 
-describe("data/manifest.json", () => {
-  const items: unknown = JSON.parse(readFileSync("data/manifest.json", "utf8"));
+describe.each(["data/manifest.json", "data/manifest.synthetic.json"])("%s", (file) => {
+  const items: unknown = JSON.parse(readFileSync(file, "utf8"));
 
   test("matches the schema", () => {
     const result = manifestSchema.safeParse(items);

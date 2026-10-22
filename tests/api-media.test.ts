@@ -25,6 +25,13 @@ describe("GET /api/media", () => {
     expect(page.items.every((item) => item.kind === "video")).toBe(true);
   });
 
+  test("lets any site's page read it, with the same answer for every origin", async () => {
+    const { response } = await get("collection=story&kind=video&limit=50");
+    expect(response.headers.get("access-control-allow-origin")).toBe("*");
+    // No Vary: Origin: the CDN keeps one copy of each page for everyone.
+    expect(response.headers.get("vary")).toBeNull();
+  });
+
   test("ignores invalid params instead of failing", async () => {
     const { response, page } = await get("kind=gif&limit=-3&cursor=%%%");
     expect(response.status).toBe(200);

@@ -27,9 +27,9 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm build
+      - run: pnpm build:e2e
 
-      - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm exec playwright install --with-deps chromium webkit firefox
       - run: pnpm test:e2e
 
       - if: failure()
@@ -64,7 +64,12 @@ jobs:
             exit 1
           fi
 
+      # A pull request's own last commit, not the merge commit GitHub makes for it: Vercel
+      # blocks a commit whose author it can't match to a GitHub account, and GitHub's merge
+      # commits carry the account's private noreply address.
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - uses: pnpm/action-setup@v6
 
@@ -84,6 +89,35 @@ jobs:
       - name: Deploy
         id: deploy
         run: |
-          url=$(vercel deploy --prebuilt $PROD_FLAG --project="$VERCEL_PROJECT" --scope="$VERCEL_SCOPE" --token="$VERCEL_TOKEN")
+          # One archive instead of one upload per file: Vercel takes at most 15,000 files per
+          # deploy, and the 1,100 static detail pages and their prefetch files pass that.
+          url=$(vercel deploy --prebuilt --archive=tgz $PROD_FLAG --project="$VERCEL_PROJECT" --scope="$VERCEL_SCOPE" --token="$VERCEL_TOKEN")
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed to $VERCEL_ENV: $url" >> "$GITHUB_STEP_SUMMARY"
+
+  # Lighthouse CI on production after each deploy: the budgets are in lighthouserc.json
+  # (docs/PERF.md). A broken budget turns the run red; LCP and TBT only warn until M7's
+  # performance pass brings them under 2.5 s and 200 ms.
+  lighthouse:
+    needs: deploy
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - run: pnpm lighthouse
+
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/reports/
+          retention-days: 14
+

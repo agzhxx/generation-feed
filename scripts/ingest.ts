@@ -2,7 +2,8 @@
 // Per item: AVIF and WebP posters at every width up to the source's (lib/media-urls.ts), a
 // JPEG for link previews and a ThumbHash. Videos also get a ~2.5 s muted preview and a 720p
 // full clip; their poster is the first frame, the same frame the preview starts on, so the
-// poster → video swap is seamless.
+// poster → video swap is seamless. Each item's original goes up too, under originals/, for
+// later projects that need full quality: an image as WebP at quality 90, a video as delivered.
 //
 // Keys look like m/<id>/v<PIPELINE_VERSION>/640.avif. The id is a hash of the source file and
 // PIPELINE_VERSION goes up whenever encoder settings change, so a key never changes in place:
@@ -18,11 +19,13 @@
 //   pnpm media:ingest --dry-run     build media-out/ and the manifest, no upload
 //   pnpm media:ingest               the same, then upload to R2 (reads .env.local)
 //   --sources <file>                a sources.json to ingest; repeatable
-//                                   (default: media-src/dev/sources.json)
+//                                   (default: media-src/real/sources.json, from pnpm media:sources)
+//   --manifest <file>               where to write the manifest (default: data/manifest.json);
+//                                   the synthetic test set is data/manifest.synthetic.json
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { appendFile, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { appendFile, copyFile, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { availableParallelism } from "node:os";
 import path from "node:path";
 import { parseArgs, promisify } from "node:util";
@@ -34,6 +37,7 @@ import { compareItems, manifestSchema, type MediaItem } from "../lib/manifest.ts
 import {
   OG_IMAGE_WIDTH,
   ogImageKey,
+  originalKey,
   posterFileKey,
   posterWidths,
   type PosterFormat,
@@ -47,7 +51,8 @@ const run = promisify(execFile);
 const PIPELINE_VERSION = 1;
 const OUT_DIR = "media-out";
 const MANIFEST_PATH = "data/manifest.json";
-const DEFAULT_SOURCES = "media-src/dev/sources.json";
+const DEFAULT_SOURCES = "media-src/real/sources.json";
+const ORIGINAL_WEBP_QUALITY = 90;
 
 const POSTER_FORMATS: readonly PosterFormat[] = ["avif", "webp"];
 const PREVIEW_SECONDS = 2.5;
@@ -202,6 +207,16 @@ async function buildItem(source: SourceItem, sourceDir: string): Promise<BuiltIt
   );
   keys.push(ogKey);
 
+  const original = originalKey({ id, kind: source.kind });
+  if (source.kind === "video" && path.extname(source.file) !== ".mp4") throw new Error(`${source.file}: originals of videos are MP4`);
+  await mkdir(path.join(OUT_DIR, path.dirname(original)), { recursive: true });
+  await produce(path.join(OUT_DIR, original), (tmp) =>
+    source.kind === "image"
+      ? sharp(sourcePath).rotate().webp({ quality: ORIGINAL_WEBP_QUALITY, effort: 4 }).toFile(tmp)
+      : copyFile(sourcePath, tmp),
+  );
+  keys.push(original);
+
   const { data, info } = await sharp(posterInput)
     .rotate()
     .resize(100, 100, { fit: "inside" })
@@ -222,6 +237,13 @@ async function buildItem(source: SourceItem, sourceDir: string): Promise<BuiltIt
     model: source.model,
     modelSlug: source.modelSlug,
     createdAt: source.createdAt,
+    collection: source.collection,
+    usedBy: source.usedBy,
+    cameraMove: source.cameraMove,
+    shot: source.shot,
+    pairId: source.pairId,
+    variant: source.variant,
+    ratioGroup: source.ratioGroup,
   };
   return { item, keys };
 }
@@ -242,7 +264,7 @@ async function report(built: BuiltItem[]): Promise<void> {
   for (const { keys } of built) {
     for (const key of keys) {
       const { size } = await stat(path.join(OUT_DIR, key));
-      const ext = path.extname(key);
+      const ext = key.startsWith("originals/") ? `orig${path.extname(key)}` : path.extname(key);
       const total = totals.get(ext) ?? { count: 0, bytes: 0 };
       totals.set(ext, { count: total.count + 1, bytes: total.bytes + size });
       if (key.endsWith("/preview.mp4")) previews.push({ key, bytes: size });
@@ -251,7 +273,7 @@ async function report(built: BuiltItem[]): Promise<void> {
   const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   const kb = (bytes: number) => `${Math.round(bytes / 1024)} KB`;
   for (const [ext, { count, bytes }] of totals) {
-    console.log(`  ${ext.padEnd(6)} ${String(count).padStart(5)} files  ${mb(bytes).padStart(9)}  avg ${kb(bytes / count)}`);
+    console.log(`  ${ext.padEnd(10)} ${String(count).padStart(5)} files  ${mb(bytes).padStart(9)}  avg ${kb(bytes / count)}`);
   }
   if (previews.length > 0) {
     const sizes = previews.map((preview) => preview.bytes).sort((a, b) => a - b);
@@ -366,6 +388,7 @@ async function main(): Promise<void> {
     options: {
       "dry-run": { type: "boolean", default: false },
       sources: { type: "string", multiple: true },
+      manifest: { type: "string", default: MANIFEST_PATH },
     },
   });
   const entries = await loadSources(values.sources ?? [DEFAULT_SOURCES]);
@@ -378,10 +401,19 @@ async function main(): Promise<void> {
     return result;
   });
 
+  // A video made from an image points at that image's id, known only once both are built.
+  const idByFile = new Map(entries.map(({ source, dir }, i) => [path.join(dir, source.file), built[i].item.id]));
+  entries.forEach(({ source, dir }, i) => {
+    if (source.sourceFile === undefined) return;
+    const sourceId = idByFile.get(path.join(dir, source.sourceFile));
+    if (sourceId === undefined) throw new Error(`${source.file} is made from ${source.sourceFile}, which isn't being ingested`);
+    built[i].item.sourceId = sourceId;
+  });
+
   const manifest = manifestSchema.parse(built.map(({ item }) => item).sort(compareItems));
-  await mkdir(path.dirname(MANIFEST_PATH), { recursive: true });
-  await writeFile(MANIFEST_PATH, `${JSON.stringify(manifest, null, 2)}\n`);
-  console.log(`Wrote ${manifest.length} items to ${MANIFEST_PATH}`);
+  await mkdir(path.dirname(values.manifest), { recursive: true });
+  await writeFile(values.manifest, `${JSON.stringify(manifest, null, 2)}\n`);
+  console.log(`Wrote ${manifest.length} items to ${values.manifest}`);
   await report(built);
 
   if (values["dry-run"]) {

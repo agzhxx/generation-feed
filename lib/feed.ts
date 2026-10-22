@@ -1,3 +1,4 @@
+import { COLLECTION_LABELS, COLLECTIONS } from "./collections.ts";
 import { matchesFilters, type FeedFilters } from "./filters.ts";
 import type { MediaItem } from "./manifest.ts";
 
@@ -36,6 +37,40 @@ function decodeCursor(cursor: string): Cursor | null {
 function isAfter(item: MediaItem, cursor: Cursor): boolean {
   const time = Date.parse(item.createdAt);
   return time < cursor.time || (time === cursor.time && item.id > cursor.id);
+}
+
+/** An entry of a filter dropdown: the value in the URL and the name shown. */
+export interface FilterOption {
+  slug: string;
+  name: string;
+}
+
+/** The models in the feed for the filter dropdown, by name, each once. */
+export function modelOptions(items: readonly MediaItem[]): FilterOption[] {
+  const names = new Map<string, string>();
+  for (const item of items) names.set(item.modelSlug, item.model);
+  return [...names].map(([slug, name]) => ({ slug, name })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** The collections in the feed for the filter dropdown, in the media plan's order; none if no item has one. */
+export function collectionOptions(items: readonly MediaItem[]): FilterOption[] {
+  const present = new Set(items.map((item) => item.collection));
+  return COLLECTIONS.filter((collection) => present.has(collection)).map((collection) => ({
+    slug: collection,
+    name: COLLECTION_LABELS[collection],
+  }));
+}
+
+/** An item and its neighbours in feed order, for the static detail pages. Null if unknown. */
+export function findWithNeighbours(items: readonly MediaItem[], id: string) {
+  const index = items.findIndex((item) => item.id === id);
+  if (index === -1) return null;
+  return {
+    item: items[index],
+    index,
+    previous: index > 0 ? items[index - 1] : null,
+    next: index < items.length - 1 ? items[index + 1] : null,
+  };
 }
 
 /** A page size from the URL: a whole number from 1 to MAX_PAGE_SIZE, else PAGE_SIZE. */

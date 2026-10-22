@@ -11,6 +11,10 @@ export const OG_IMAGE_WIDTH = 1200;
 export const GRID_POSTER_SIZES =
   "(max-width: 639px) 50vw, (max-width: 1023px) 33vw, (max-width: 1439px) 25vw, 20vw";
 
+/** With Save-Data on: half of that, so the browser picks posters about half as wide (spec 3.4). */
+export const GRID_POSTER_SIZES_SAVE_DATA =
+  "(max-width: 639px) 25vw, (max-width: 1023px) 17vw, (max-width: 1439px) 13vw, 10vw";
+
 /** Poster widths that exist for a source: never upscaled, but the smallest always exists. */
 export function posterWidths(sourceWidth: number): number[] {
   const widths = POSTER_WIDTHS.filter((width) => width <= sourceWidth);
@@ -27,7 +31,29 @@ export function ogImageKey(posterKey: string): string {
   return `${posterKey}/og.jpg`;
 }
 
-// URLs. `origin` is the public media origin, e.g. NEXT_PUBLIC_MEDIA_ORIGIN.
+/** The original at full quality, for later projects: an image as WebP, a video as delivered. */
+export function originalKey(item: Pick<MediaItem, "id" | "kind">): string {
+  return `originals/${item.id}.${item.kind === "image" ? "webp" : "mp4"}`;
+}
+
+/** Where pages load media from: posters and videos can come from different origins. */
+export interface MediaOrigins {
+  posters: string;
+  videos: string;
+}
+
+/** The R2 bucket's public origin, e.g. its r2.dev address. */
+export const BUCKET_ORIGIN = process.env.NEXT_PUBLIC_MEDIA_ORIGIN ?? "";
+
+/**
+ * Posters load from the site's own address: next.config.ts forwards them to the bucket and
+ * Vercel's CDN caches them, so the first screen needs no second connection. Videos load from the
+ * bucket itself: browsers ask for a video in ranges, and Vercel's CDN would replay the answer to
+ * one range for every request to that file.
+ */
+export const MEDIA_ORIGINS: MediaOrigins = { posters: "", videos: BUCKET_ORIGIN };
+
+// URLs. `origin` is where the file is fetched from: one of MEDIA_ORIGINS, or BUCKET_ORIGIN.
 
 export function mediaUrl(origin: string, key: string): string {
   return `${origin.replace(/\/+$/, "")}/${key}`;
@@ -61,22 +87,4 @@ export function previewUrl(origin: string, item: MediaItem): string | undefined 
 
 export function videoUrl(origin: string, item: MediaItem): string | undefined {
   return item.videoKey === undefined ? undefined : mediaUrl(origin, item.videoKey);
-}
-
-/**
- * The URLs a media card needs, bound to one origin. Cards take this as a prop, so they hold
- * no hard-coded origin and can move to the UI kit unchanged (spec 4.12).
- */
-export interface MediaUrls {
-  poster(item: MediaItem, width: number, format: PosterFormat): string;
-  posterSrcSet(item: MediaItem, format: PosterFormat): string;
-  preview(item: MediaItem): string | undefined;
-}
-
-export function createMediaUrls(origin: string): MediaUrls {
-  return {
-    poster: (item, width, format) => posterUrl(origin, item, width, format),
-    posterSrcSet: (item, format) => posterSrcSet(origin, item, format),
-    preview: (item) => previewUrl(origin, item),
-  };
 }

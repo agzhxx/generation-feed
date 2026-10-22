@@ -10,6 +10,7 @@ import { availableParallelism } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import sharp from "sharp";
+import { COLLECTIONS } from "../lib/collections.ts";
 import { mapConcurrent } from "./pool.ts";
 import type { SourceItem } from "./sources.ts";
 
@@ -205,6 +206,8 @@ async function main(): Promise<void> {
   const sources: SourceItem[] = plan.map(({ n, isVideo }) => ({
     ...(isVideo ? videoMeta[videoCursor++] : imageMeta[imageCursor++]),
     createdAt: new Date(NEWEST - n * STEP_MS).toISOString(),
+    // Each test item gets a collection in turn, so the collection filter has something to show.
+    collection: COLLECTIONS[n % COLLECTIONS.length],
   }));
 
   await writeFile(path.join(OUT_DIR, "sources.json"), `${JSON.stringify(sources, null, 2)}\n`);

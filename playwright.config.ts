@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = 3100;
 const isCI = Boolean(process.env.CI);
 
-// Runs against the production build: `pnpm build` first.
+// Runs against a production build of the synthetic test media: `pnpm build:e2e` first.
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -17,9 +17,10 @@ export default defineConfig({
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
   ],
   webServer: {
-    command: `pnpm start --port ${PORT}`,
+    command: `FEED_MEDIA=synthetic pnpm start --port ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !isCI,
   },

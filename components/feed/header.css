@@ -1,0 +1,74 @@
+/*
+ * The header's three layouts (design: Header board). Each control names its grid area in
+ * Header.tsx; only the arrangement changes here.
+ *   Phone:   name, count and a search button; then the type chips and a Filters button that
+ *            opens the model and collection pickers in a sheet (FilterBar.tsx).
+ *            With search open, the first row becomes the search field.
+ *   Tablet:  name and search; then chips, the selects and the count (up to 1279 px).
+ *   Desktop: one 56 px row, the count pushed to the right. It needs about 1,105 px since the
+ *            collection select came in, so it starts at 1280 px instead of 1024 px.
+ */
+.feed-header {
+  display: grid;
+  align-items: center;
+  column-gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-rows: 52px 44px;
+  grid-template-areas:
+    "name count toggle"
+    "filters filters filters";
+}
+
+.feed-header[data-search="open"] {
+  grid-template-areas:
+    "search search search"
+    "filters filters filters";
+}
+
+@media (width >= 640px) {
+  .feed-header,
+  .feed-header[data-search="open"] {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "name search"
+      "filters count";
+  }
+}
+
+@media (width >= 1280px) {
+  .feed-header,
+  .feed-header[data-search="open"] {
+    column-gap: 16px;
+    grid-template-columns: auto auto auto minmax(0, 1fr);
+    grid-template-rows: 56px;
+    grid-template-areas: "name filters search count";
+  }
+}
+
+/* The sticky header covers the top of the page, so what the page scrolls to (a card brought back
+   into view after the detail view, a card reached with Tab) stops below it: two rows and the
+   line, then one row from 1280 px. */
+html {
+  scroll-padding-top: calc(52px + 44px + 1px);
+}
+
+@media (width >= 1280px) {
+  html {
+    scroll-padding-top: calc(56px + 1px);
+  }
+}
+
+/* The phone's filter sheet slides up as it opens; with reduced motion it just appears. */
+.filter-sheet[open] {
+  transition: translate var(--dur-base) var(--ease-out);
+
+  @starting-style {
+    translate: 0 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filter-sheet[open] {
+    transition: none;
+  }
+}

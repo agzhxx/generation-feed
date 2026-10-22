@@ -1,31 +1,7 @@
-import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import type { FeedPage } from "../lib/feed";
-import type { MediaItem } from "../lib/manifest";
+import { collectErrors, manifest, serveFixtureMedia, waitForInteractiveFeed } from "./helpers";
 
-const POSTER = readFileSync("e2e/fixtures/poster.png");
-const PREVIEW = readFileSync("e2e/fixtures/preview.mp4");
-
-/** Every media file comes from small local fixtures: fast, stable, and no R2 traffic. */
-async function serveFixtureMedia(page: Page): Promise<void> {
-  await page.route(/\/m\/[0-9a-v]{10}\/v\d+\/[^/]+$/, (route) => {
-    const isVideo = route.request().url().endsWith(".mp4");
-    return route.fulfill({
-      body: isVideo ? PREVIEW : POSTER,
-      contentType: isVideo ? "video/mp4" : "image/png",
-      headers: { "Cache-Control": "public, max-age=31536000, immutable" },
-    });
-  });
-}
-
-function collectErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
-  });
-  page.on("pageerror", (error) => errors.push(error.message));
-  return errors;
-}
 
 test.beforeEach(async ({ page }) => {
   await serveFixtureMedia(page);
@@ -58,11 +34,68 @@ test("home loads without console errors or layout shift", async ({ page, browser
   }
 });
 
+interface CardRect {
+  position: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+function readCards(page: Page): Promise<CardRect[]> {
+  return page.$$eval('[role="listitem"]', (cards) =>
+    cards.map((card) => {
+      const rect = card.getBoundingClientRect();
+      return {
+        position: Number(card.getAttribute("aria-posinset")),
+        x: rect.x,
+        y: rect.y + window.scrollY,
+        width: rect.width,
+        height: rect.height,
+      };
+    }),
+  );
+}
+
+for (const width of [390, 800, 1280, 1600]) {
+  test(`the server-rendered first screen matches the client layout at ${width} px`, async ({ browser }) => {
+    const viewport = { width, height: 900 };
+
+    // Without JavaScript: the server HTML alone, placed by CSS (and still a list of links).
+    const noScript = await browser.newContext({ viewport, javaScriptEnabled: false });
+    const serverPage = await noScript.newPage();
+    await serveFixtureMedia(serverPage);
+    await serverPage.goto("/");
+    const server = await readCards(serverPage);
+    expect(server).toHaveLength(40);
+    await expect(serverPage.locator('[role="listitem"] a[href^="/m/"]')).toHaveCount(40);
+    await noScript.close();
+
+    // With JavaScript: after hydration the grid places cards in pixels.
+    const context = await browser.newContext({ viewport });
+    const clientPage = await context.newPage();
+    await serveFixtureMedia(clientPage);
+    await clientPage.goto("/");
+    await clientPage.locator('[data-slot="media-grid"][data-layout="pixels"]').waitFor();
+    const client = await readCards(clientPage);
+    await context.close();
+
+    const serverByPosition = new Map(server.map((card) => [card.position, card]));
+    const compared = client.filter((card) => serverByPosition.has(card.position));
+    expect(compared.length).toBeGreaterThan(5);
+    for (const card of compared) {
+      const before = serverByPosition.get(card.position)!;
+      for (const key of ["x", "y", "width", "height"] as const) {
+        expect(Math.abs(card[key] - before[key]), `card ${card.position} ${key}`).toBeLessThan(0.5);
+      }
+    }
+  });
+}
+
 test("scrolling to the end of 1,000 items keeps at most 150 cards in the page", async ({ page }) => {
   test.setTimeout(120_000);
   const TOTAL = 1000;
   const PAGE_SIZE = 40;
-  const manifest = JSON.parse(readFileSync("data/manifest.json", "utf8")) as MediaItem[];
 
   // The first 40 items come from the server HTML; every later page is made up here, cloning
   // the real items with new ids until there are 1,000.
@@ -101,4 +134,94 @@ test("scrolling to the end of 1,000 items keeps at most 150 cards in the page", 
 
   expect(lastPosition).toBe(TOTAL);
   expect(maxCards).toBeLessThanOrEqual(150);
+});
+
+/** Later pages hold only videos (cloned from the real ones), so there are plenty to hover. */
+async function serveVideoOnlyPages(page: Page): Promise<void> {
+  const videos = manifest.filter((item) => item.kind === "video");
+  await page.route("**/api/media?*", (route) => {
+    const cursor = new URL(route.request().url()).searchParams.get("cursor") ?? "";
+    const pageNumber = /^v\d+$/.test(cursor) ? Number(cursor.slice(1)) : 1;
+    const items = Array.from({ length: 40 }, (_, offset) => {
+      const n = pageNumber * 40 + offset;
+      return { ...videos[n % videos.length], id: `f${n.toString(32).padStart(9, "0")}` };
+    });
+    const body: FeedPage = { items, nextCursor: pageNumber < 5 ? `v${pageNumber + 1}` : null, total: 240 };
+    return route.fulfill({ json: body });
+  });
+}
+
+test("a fast hover sweep over 30 video cards never makes more videos than the pool holds", async ({ page }) => {
+  test.setTimeout(90_000);
+  // Count every <video> the page ever creates, not just the ones in the DOM right now.
+  await page.addInitScript(() => {
+    const scope = window as typeof window & { __videosCreated: number };
+    scope.__videosCreated = 0;
+    const create = Document.prototype.createElement;
+    Document.prototype.createElement = function (this: Document, name: string, options?: ElementCreationOptions) {
+      if (name.toLowerCase() === "video") scope.__videosCreated++;
+      return create.call(this, name, options);
+    } as typeof Document.prototype.createElement;
+  });
+  await serveVideoOnlyPages(page);
+  await page.setViewportSize({ width: 1440, height: 900 }); // a mouse device: pool of 6
+  await page.goto("/");
+  // Counting cards before the switch to the client layout would count server cards that the
+  // switch then unmounts.
+  await waitForInteractiveFeed(page);
+
+  let hovered = 0;
+  let maxInDom = 0;
+  for (let step = 0; step < 80 && hovered < 30; step++) {
+    const cards = page.locator('[role="listitem"]:has-text("Video ·") a');
+    for (let i = 0, count = await cards.count(); i < count && hovered < 30; i++) {
+      const box = await cards.nth(i).boundingBox();
+      if (box === null || box.y < 60 || box.y + box.height > 900) continue;
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.waitForTimeout(150); // just past the 100 ms hover intent
+      hovered++;
+      maxInDom = Math.max(maxInDom, await page.locator("video").count());
+    }
+    await page.mouse.wheel(0, 800);
+    await page.waitForTimeout(100);
+  }
+
+  expect(hovered).toBe(30);
+  const created = await page.evaluate(() => (window as typeof window & { __videosCreated: number }).__videosCreated);
+  expect(created).toBeLessThanOrEqual(6);
+  expect(maxInDom).toBeLessThanOrEqual(6);
+});
+
+test("hovering a video card starts playback within 1.5 s", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  // Server cards have no previews; hover once the client layout is in.
+  await waitForInteractiveFeed(page);
+  const card = page.locator('[role="listitem"]:has-text("Video ·") a').first();
+  await expect(card).toBeVisible();
+  await card.hover();
+
+  const video = card.locator("video");
+  await expect
+    .poll(() => video.evaluate((element) => !(element as HTMLVideoElement).paused && (element as HTMLVideoElement).currentTime > 0), {
+      timeout: 1500,
+    })
+    .toBe(true);
+});
+
+test("with reduced motion nothing plays by itself, and video cards show play buttons", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const card = page.locator('[role="listitem"]:has-text("Video ·")').first();
+  await expect(card.getByRole("button", { name: "Play preview" })).toBeVisible();
+
+  // Near the corner: the play button covers the card's center.
+  await card.locator("a").hover({ position: { x: 12, y: 40 } });
+  await page.waitForTimeout(600);
+  await expect(page.locator("video")).toHaveCount(0);
+
+  await card.getByRole("button", { name: "Play preview" }).click();
+  await expect(card.getByRole("button", { name: "Pause preview" })).toBeVisible();
+  await expect(card.locator("video")).toHaveCount(1);
 });

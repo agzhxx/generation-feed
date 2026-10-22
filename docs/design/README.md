@@ -112,7 +112,7 @@ All values are in [app/tokens.css](../../app/tokens.css). Contrast is measured o
 | `spacing-lane-lg` | 8 px | 1024 px and up (4 lanes, 5 from 1440 px) |
 | `container-lanes-3/4/5` | 640 / 1024 / 1440 px | Grid width breakpoints for `@lanes-3:` etc. |
 | `spacing-control` | 36 px | Chips, inputs, buttons (44 px tap area on touch) |
-| `spacing-header` | 56 px | Desktop header (tablet and phone: 52 + 44 px rows) |
+| `spacing-header` | 56 px | Desktop header, from 1280 px (below that: 52 + 44 px rows) |
 | `spacing-panel` | 380 px | Detail side panel |
 | `radius-badge` | 4 px | Badges, key hints |
 | `radius-card` | 6 px | Cards, skeletons, detail media |
@@ -125,7 +125,8 @@ All values are in [app/tokens.css](../../app/tokens.css). Contrast is measured o
 | `--ease-out` | `cubic-bezier(0.2, 0.8, 0.2, 1)` | All transitions |
 
 Grid padding equals the gap, so: lane width = (grid width − (lanes + 1) × gap) ÷ lanes.
-`lib/layout.ts` must use the same numbers (4 / 6 / 8 px, 640 / 1024 / 1440 px).
+`LANE_STEPS` in `lib/masonry-layout.ts` (from the Genframe Kit) uses the same numbers (4 / 6 / 8 px,
+640 / 1024 / 1440 px).
 
 ## Using the tokens in code
 
@@ -169,9 +170,11 @@ hours).
 3. Make text styles 2xs to xl with Instrument Sans (built into Figma's Google Fonts).
 4. Frame "Header / Desktop", 1440 × 57: horizontal auto layout, padding 0 16, gap 12,
    items centered, fill `bg`, 1 px bottom stroke `line`. Add the wordmark, three chips
-   (36 tall, padding 0 14, pill radius), the model select, the search field (280 × 36),
-   and the result count pushed right. Add "Header / Phone", 390 × 97, the same way. Copy
-   sizes from the Header board.
+   (36 tall, padding 0 14, pill radius), the model and collection selects, the search field (280 × 36),
+   and the result count pushed right. Add "Header / Phone", 390 × 97, the same way: its
+   second row holds the chips and a Filters button (funnel icon, a count badge when a model or
+   collection is set) that opens a bottom sheet with both selects and a "Show N results"
+   button. Copy sizes from the Header board.
 5. Components "Card / Image", "Card / Video", "Card / Video focused", 278 × 348: radius 6,
    clip content, a gradient fill as placeholder media. Badges are auto-layout frames,
    20 tall, padding 0 6, radius 4, fill `scrim`, placed 8 px from the edges (see the

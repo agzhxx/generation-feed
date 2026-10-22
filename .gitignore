@@ -42,6 +42,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# project docs (local only): they guide the build and aren't published
+docs/*
+
 # playwright
 /test-results/
 /playwright-report/
@@ -51,3 +54,6 @@ next-env.d.ts
 # media pipeline (sources and processed files stay local; R2 holds the processed ones)
 /media-src/
 /media-out/
+
+# Lighthouse CI reports
+/.lighthouseci/

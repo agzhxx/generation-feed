@@ -1,39 +1,38 @@
 /**
- * Masonry grid math (spec 3.1, 4.6). Pure functions, shared by the grid and its tests; the
- * breakpoints and gaps match the design tokens (app/tokens.css: --container-lanes-*, lane gaps).
+ * Which first-page card is the likely Largest Contentful Paint on a phone (spec 4.5): the server
+ * preloads its poster, and the grid fetches it first. The masonry math itself is the Genframe
+ * Kit's (lib/masonry-layout.ts, installed with `shadcn add`); the reference phone and the header
+ * are the feed's.
  */
+import { cardBox, gridLayout, placeCards } from "./masonry-layout.ts";
 
-/** Lanes and gap by grid width. The grid's padding equals its gap. */
-const LANE_STEPS = [
-  { minWidth: 1440, lanes: 5, gap: 8 },
-  { minWidth: 1024, lanes: 4, gap: 8 },
-  { minWidth: 640, lanes: 3, gap: 6 },
-  { minWidth: 0, lanes: 2, gap: 4 },
-] as const;
+/**
+ * The phone the first screen is tuned for: Lighthouse's mobile preset (a Moto G Power),
+ * 412 × 823 CSS px. Real phones vary: Safari's toolbars make iPhone screens shorter, and taller
+ * Android screens can favor a card further down.
+ */
+export const REFERENCE_PHONE = { width: 412, height: 823 };
+/** The phone header: rows of 52 and 44 px plus its 1 px line (components/feed/header.css). */
+export const PHONE_HEADER_HEIGHT = 97;
 
-/** Card height ÷ width is clamped to 1:2 (wide) … 2:1 (tall); the media is cropped beyond that. */
-export const MIN_ASPECT = 0.5;
-export const MAX_ASPECT = 2;
-
-export interface GridLayout {
-  lanes: number;
-  gap: number;
-  laneWidth: number;
-}
-
-export function gridLayout(gridWidth: number): GridLayout {
-  const step = LANE_STEPS.find((candidate) => gridWidth >= candidate.minWidth) ?? LANE_STEPS[3];
-  const laneWidth = Math.max(0, (gridWidth - (step.lanes + 1) * step.gap) / step.lanes);
-  return { lanes: step.lanes, gap: step.gap, laneWidth };
-}
-
-/** Card height in whole pixels, from the media's own size. */
-export function cardHeight(laneWidth: number, mediaWidth: number, mediaHeight: number): number {
-  const aspect = Math.min(MAX_ASPECT, Math.max(MIN_ASPECT, mediaHeight / mediaWidth));
-  return Math.round(laneWidth * aspect);
-}
-
-/** Distance from the grid's left edge to a lane's left edge. */
-export function laneLeft(layout: GridLayout, lane: number): number {
-  return layout.gap + lane * (layout.laneWidth + layout.gap);
+/**
+ * The card most likely to be the Largest Contentful Paint on a phone: the one with the most
+ * visible area on the first screen, below the header, with the real lane width and gaps.
+ * Cards in a lane are equally wide, so visible height decides. The server preloads its poster
+ * with high priority (spec 4.5); larger screens load their whole first row eagerly anyway.
+ */
+export function likelyLcpIndex(aspects: readonly number[], phone = REFERENCE_PHONE): number {
+  const layout = gridLayout(phone.width);
+  const screenBottom = phone.height - PHONE_HEADER_HEIGHT;
+  let best = 0;
+  let bestVisible = 0;
+  placeCards(aspects, layout.lanes).forEach((placement, index) => {
+    const box = cardBox(placement, aspects[index], layout);
+    const visible = Math.min(box.top + box.height, screenBottom) - box.top;
+    if (visible > bestVisible) {
+      best = index;
+      bestVisible = visible;
+    }
+  });
+  return best;
 }
