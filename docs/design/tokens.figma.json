@@ -1,0 +1,53 @@
+{
+  "$description": "Generation Feed tokens for Figma (W3C design-tokens format). Same values as app/tokens.css, which stays the source of truth.",
+  "color": {
+    "bg": { "$type": "color", "$value": "#0b0b0c", "$description": "Page and sticky header" },
+    "surface": { "$type": "color", "$value": "#141416", "$description": "Detail panel, inline error row" },
+    "surface-raised": { "$type": "color", "$value": "#1d1d20", "$description": "Inputs, chips on hover, menus, toasts" },
+    "line": { "$type": "color", "$value": "#2a2a2f", "$description": "Dividers (decorative)" },
+    "line-strong": { "$type": "color", "$value": "#62626b", "$description": "Input and select borders" },
+    "fg": { "$type": "color", "$value": "#f2f2f3", "$description": "Main text and icons" },
+    "fg-muted": { "$type": "color", "$value": "#a8a8b0", "$description": "Secondary text" },
+    "fg-subtle": { "$type": "color", "$value": "#8b8b94", "$description": "Placeholders, key hints" },
+    "accent": { "$type": "color", "$value": "#ff7a45", "$description": "Ember: selected chip, primary button, logo mark" },
+    "accent-hover": { "$type": "color", "$value": "#ff9466" },
+    "on-accent": { "$type": "color", "$value": "#1a0a03", "$description": "Text and icons on accent" },
+    "focus": { "$type": "color", "$value": "#ff7a45", "$description": "Focus ring" },
+    "danger": { "$type": "color", "$value": "#ff6b81", "$description": "Error icons" },
+    "scrim": { "$type": "color", "$value": "#0b0b0cb8", "$description": "Badges and icon buttons on media (72%)" },
+    "backdrop": { "$type": "color", "$value": "#060607f0", "$description": "Behind the detail overlay (94%)" },
+    "skeleton": { "$type": "color", "$value": "#18181b", "$description": "Loading cards" }
+  },
+  "font-size": {
+    "2xs": { "$type": "dimension", "$value": "11px", "$description": "line height 16, badges" },
+    "xs": { "$type": "dimension", "$value": "12px", "$description": "line height 16, labels" },
+    "sm": { "$type": "dimension", "$value": "13px", "$description": "line height 18, chips, inputs, buttons" },
+    "base": { "$type": "dimension", "$value": "14px", "$description": "line height 20, body" },
+    "md": { "$type": "dimension", "$value": "16px", "$description": "line height 24, prompt, phone search" },
+    "lg": { "$type": "dimension", "$value": "20px", "$description": "line height 28, -0.01em, state headings" },
+    "xl": { "$type": "dimension", "$value": "28px", "$description": "line height 34, -0.02em, big numbers" }
+  },
+  "font-family": {
+    "sans": { "$type": "fontFamily", "$value": "Instrument Sans" }
+  },
+  "spacing": {
+    "lane-sm": { "$type": "dimension", "$value": "4px", "$description": "Grid gap and padding, < 640 px, 2 lanes" },
+    "lane-md": { "$type": "dimension", "$value": "6px", "$description": "640-1023 px, 3 lanes" },
+    "lane-lg": { "$type": "dimension", "$value": "8px", "$description": ">= 1024 px, 4 or 5 lanes" },
+    "control": { "$type": "dimension", "$value": "36px" },
+    "header": { "$type": "dimension", "$value": "56px" },
+    "panel": { "$type": "dimension", "$value": "380px" }
+  },
+  "radius": {
+    "badge": { "$type": "dimension", "$value": "4px" },
+    "card": { "$type": "dimension", "$value": "6px" },
+    "control": { "$type": "dimension", "$value": "8px" },
+    "panel": { "$type": "dimension", "$value": "12px" },
+    "pill": { "$type": "dimension", "$value": "9999px" }
+  },
+  "motion": {
+    "dur-fast": { "$type": "duration", "$value": "120ms" },
+    "dur-base": { "$type": "duration", "$value": "220ms" },
+    "ease-out": { "$type": "cubicBezier", "$value": [0.2, 0.8, 0.2, 1] }
+  }
+}

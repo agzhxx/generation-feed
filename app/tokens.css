@@ -1,0 +1,94 @@
+/*
+ * Generation Feed design tokens (Tailwind CSS v4)
+ *
+ * Imported by app/globals.css right after `@import "tailwindcss";`.
+ * docs/design/README.md explains each choice.
+ *
+ * Contrast (WCAG 2.x), measured on --color-bg / --color-surface / --color-surface-raised:
+ *   fg 17.6 / 16.5 / 15.0   fg-muted 8.3 / 7.8 / 7.1   fg-subtle 5.8 / 5.5 / 5.0
+ *   accent 7.6 / 7.1 / 6.5  on-accent on accent 7.5   danger 7.2 / 6.7
+ *   line-strong (input borders) 3.1 on surface        badge text on scrim over pure white 7.3
+ * ------------------------------------------------------------------------- */
+
+@theme static {
+  /* Colors. The reset removes Tailwind's default palette, so only these exist. */
+  --color-*: initial;
+  --color-bg: #0b0b0c;               /* page and sticky header */
+  --color-surface: #141416;          /* detail panel, inline error row */
+  --color-surface-raised: #1d1d20;   /* inputs, chips on hover, menus, toasts */
+  --color-line: #2a2a2f;             /* dividers (decorative only) */
+  --color-line-strong: #62626b;      /* input and select borders, 3:1 on surface */
+  --color-fg: #f2f2f3;               /* main text and icons */
+  --color-fg-muted: #a8a8b0;         /* secondary text, result count */
+  --color-fg-subtle: #8b8b94;        /* placeholders, key hints */
+  --color-accent: #ff7a45;           /* "Ember": selected chip, primary button, logo mark */
+  --color-accent-hover: #ff9466;
+  --color-on-accent: #1a0a03;        /* text and icons on accent */
+  --color-focus: #ff7a45;            /* focus ring, always drawn over the page background */
+  --color-danger: #ff6b81;           /* error icons only; error text stays fg */
+  --color-scrim: rgb(11 11 12 / 0.72);     /* badges and icon buttons on top of media */
+  --color-backdrop: rgb(6 6 7 / 0.94);     /* behind the detail overlay */
+  --color-skeleton: #18181b;         /* loading cards */
+
+  /* Type. One variable font file (Instrument Sans), see @theme inline below. */
+  --text-*: initial;
+  --text-2xs: 0.6875rem;   --text-2xs--line-height: 1rem;      /* 11/16 badges */
+  --text-xs: 0.75rem;      --text-xs--line-height: 1rem;       /* 12/16 labels, key hints */
+  --text-sm: 0.8125rem;    --text-sm--line-height: 1.125rem;   /* 13/18 chips, inputs, buttons */
+  --text-base: 0.875rem;   --text-base--line-height: 1.25rem;  /* 14/20 body */
+  --text-md: 1rem;         --text-md--line-height: 1.5rem;     /* 16/24 prompt; phone search input (stops iOS zoom) */
+  --text-lg: 1.25rem;      --text-lg--line-height: 1.75rem;    /* 20/28 state headings */
+  --text-lg--letter-spacing: -0.01em;
+  --text-xl: 1.75rem;      --text-xl--line-height: 2.125rem;   /* 28/34 big numbers (/stats) */
+  --text-xl--letter-spacing: -0.02em;
+  --tracking-label: 0.04em;          /* the uppercase "AI" badge */
+
+  /* Spacing. Tailwind's 4 px step (p-1 = 4px, p-2 = 8px ...) stays as is. */
+  --spacing-lane-sm: 4px;            /* grid < 640 px: 2 lanes */
+  --spacing-lane-md: 6px;            /* grid 640-1023 px: 3 lanes */
+  --spacing-lane-lg: 8px;            /* grid >= 1024 px: 4 or 5 lanes */
+  --spacing-control: 2.25rem;        /* 36 px: chips, inputs, buttons */
+  --spacing-header: 3.5rem;          /* 56 px: desktop header (phone: 52 + 44, see README) */
+  --spacing-panel: 23.75rem;         /* 380 px: detail side panel */
+
+  /* Grid width breakpoints for container queries (@lanes-3:, @lanes-4:, @lanes-5:).
+     In px on purpose: lib/layout.ts uses the same numbers in px. */
+  --container-lanes-3: 640px;
+  --container-lanes-4: 1024px;
+  --container-lanes-5: 1440px;
+
+  /* Radii */
+  --radius-*: initial;
+  --radius-badge: 4px;
+  --radius-card: 6px;
+  --radius-control: 8px;
+  --radius-panel: 12px;
+  --radius-pill: 9999px;
+
+  /* Shadow: only for things that float (model menu, offline toast). */
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.06);
+
+  /* Motion easing (also gives the `ease-out` utility). */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* next/font gives us --font-instrument-sans; `inline` makes the utility use it directly. */
+@theme inline {
+  --font-sans: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* Durations have no Tailwind namespace, so they live on :root (Tailwind's own advice).
+   Use them as var(--dur-fast) in CSS or duration-(--dur-fast) in class names. */
+:root {
+  --dur-fast: 120ms;   /* hover and press feedback, video fading in over its poster */
+  --dur-base: 220ms;   /* poster fading in, detail overlay open/close */
+}
+
+/* Reduced motion: everything that uses the tokens becomes instant. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+  }
+}
